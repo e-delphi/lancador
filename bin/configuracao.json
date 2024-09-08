@@ -1,0 +1,20 @@
+{
+    "tempo_verificacao": 10,
+    "repositorio": "ollama/ollama",
+    "instalador": "ollama-windows-amd64.zip",
+    "executavel": "ollama.exe",
+    "versao_atual":
+    {
+        "name": "",
+        "created_at": "",
+        "body": "",
+        "download": ""
+    },
+    "versao_nova":
+    {
+        "name": "",
+        "created_at": "",
+        "body": "",
+        "download": ""
+    }
+}

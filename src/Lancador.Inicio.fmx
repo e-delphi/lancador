@@ -1,0 +1,143 @@
+object Inicio: TInicio
+  Left = 0
+  Top = 0
+  BorderStyle = ToolWindow
+  Caption = 'Lan'#231'ador'
+  ClientHeight = 518
+  ClientWidth = 682
+  Fill.Color = xFFF3F3F3
+  Fill.Kind = Solid
+  Padding.Left = 15.000000000000000000
+  Padding.Right = 15.000000000000000000
+  Padding.Bottom = 10.000000000000000000
+  Position = DesktopCenter
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnMouseDown = FormMouseDown
+  OnShow = FormShow
+  DesignerMasterStyle = 0
+  object lytTop: TLayout
+    Align = Top
+    Position.X = 15.000000000000000000
+    Size.Width = 652.000000000000000000
+    Size.Height = 46.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 1
+    object rtgAcao: TRectangle
+      Align = Right
+      Cursor = crHandPoint
+      Fill.Color = claDimgray
+      Margins.Top = 5.000000000000000000
+      Position.X = 436.000000000000000000
+      Position.Y = 5.000000000000000000
+      Size.Width = 108.000000000000000000
+      Size.Height = 36.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Kind = None
+      XRadius = 5.000000000000000000
+      YRadius = 5.000000000000000000
+      OnClick = rtgAcaoClick
+      object txtAcao: TText
+        Align = Client
+        HitTest = False
+        Size.Width = 108.000000000000000000
+        Size.Height = 36.000000000000000000
+        Size.PlatformDefault = False
+        Text = 'Download'
+        TextSettings.Font.Size = 16.000000000000000000
+        TextSettings.FontColor = claWhite
+      end
+      object caAcao: TColorAnimation
+        AnimationType = InOut
+        Duration = 0.200000002980232200
+        Interpolation = Cubic
+        PropertyName = 'Fill.Color'
+        StartValue = claRoyalblue
+        StopValue = xFF1248E9
+        Trigger = 'IsMouseOver=true'
+        TriggerInverse = 'IsMouseOver=false'
+      end
+    end
+    object txtNomeData: TText
+      Align = Left
+      HitTest = False
+      Size.Width = 300.000000000000000000
+      Size.Height = 41.000000000000000000
+      Size.PlatformDefault = False
+      TextSettings.Font.Size = 18.000000000000000000
+      TextSettings.HorzAlign = Leading
+    end
+    object pbAcao: TProgressBar
+      Align = Bottom
+      Orientation = Horizontal
+      Position.Y = 41.000000000000000000
+      Size.Width = 652.000000000000000000
+      Size.Height = 5.000000000000000000
+      Size.PlatformDefault = False
+      object faAcao: TFloatAnimation
+        AnimationType = InOut
+        Duration = 0.500000000000000000
+        PropertyName = 'Value'
+        StartValue = 0.000000000000000000
+        StartFromCurrent = True
+        StopValue = 0.000000000000000000
+      end
+    end
+    object rtgCancelar: TRectangle
+      Align = Right
+      Cursor = crHandPoint
+      Fill.Color = claBrown
+      Margins.Top = 5.000000000000000000
+      Position.X = 544.000000000000000000
+      Position.Y = 5.000000000000000000
+      Size.Width = 108.000000000000000000
+      Size.Height = 36.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Kind = None
+      XRadius = 5.000000000000000000
+      YRadius = 5.000000000000000000
+      OnClick = rtgCancelarClick
+      object txtCancelar: TText
+        Align = Client
+        HitTest = False
+        Size.Width = 108.000000000000000000
+        Size.Height = 36.000000000000000000
+        Size.PlatformDefault = False
+        Text = 'Cancelar'
+        TextSettings.Font.Size = 16.000000000000000000
+        TextSettings.FontColor = claWhite
+      end
+      object caCancelar: TColorAnimation
+        AnimationType = InOut
+        Duration = 0.200000002980232200
+        Interpolation = Cubic
+        PropertyName = 'Fill.Color'
+        StartValue = claBrown
+        StopValue = claDarkred
+        Trigger = 'IsMouseOver=true'
+        TriggerInverse = 'IsMouseOver=false'
+      end
+    end
+  end
+  object lytScale: TLayout
+    Align = Client
+    Size.Width = 652.000000000000000000
+    Size.Height = 462.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 4
+    object txtInformacoes: TText
+      Align = Client
+      Margins.Top = 15.000000000000000000
+      Size.Width = 652.000000000000000000
+      Size.Height = 447.000000000000000000
+      Size.PlatformDefault = False
+      TextSettings.HorzAlign = Leading
+      TextSettings.VertAlign = Leading
+    end
+  end
+  object HTTPClient: TNetHTTPClient
+    UserAgent = 'Embarcadero URI Client/1.0'
+    Left = 495
+  end
+end
