@@ -81,7 +81,7 @@ type
     FUltimaAtualizacao: TDateTime;
     procedure ReceiveData(const Sender: TObject; AContentLength, AReadCount: Int64; var AAbort: Boolean);
     procedure AtualizaBotao;
-    class procedure IniciarAplicativo(var bSair: Boolean; var bAberto: Boolean);
+    class procedure IniciarAplicativo(const bAtualizou: Boolean; var bSair: Boolean; var bAberto: Boolean);
   public
     class function CarregarConfiguracao: Boolean;
     class procedure SalvarConfiguracao;
@@ -95,9 +95,10 @@ var
 implementation
 
 uses
-  REST.API,
   System.JSON,
-  System.DateUtils;
+  System.DateUtils,
+  FMX.DialogService,
+  REST.API;
 
 var
   Configuracao: TConfiguracao;
@@ -106,30 +107,49 @@ var
 
 { TInicio }
 
-function ExisteOutroProcesso(exeFileName: string): Boolean;
+function ContaProcessos(exeFileName: String): Integer;
 var
   ContinueLoop: BOOL;
   FSnapshotHandle: THandle;
   FProcessEntry32: TProcessEntry32;
-  iQtd: Integer;
 begin
   FSnapshotHandle := CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
   FProcessEntry32.dwSize := SizeOf(FProcessEntry32);
   ContinueLoop := Process32First(FSnapshotHandle, FProcessEntry32);
-  iQtd := 0;
-  Result := False;
+  Result := 0;
   while Integer(ContinueLoop) <> 0 do
   begin
     if (UpperCase(ExtractFileName(FProcessEntry32.szExeFile)) = UpperCase(ExeFileName)) or (UpperCase(FProcessEntry32.szExeFile) = UpperCase(ExeFileName)) then
-      Inc(iQtd);
-    if iQtd > 1 then
-      Exit(True);
+      Inc(Result);
     ContinueLoop := Process32Next(FSnapshotHandle, FProcessEntry32);
   end;
   CloseHandle(FSnapshotHandle);
 end;
 
-class procedure TInicio.IniciarAplicativo(var bSair: Boolean; var bAberto: Boolean);
+function MatarProcesso(exeFileName: String): Integer;
+const
+  PROCESS_TERMINATE = $0001;
+var
+  ContinueLoop: BOOL;
+  FSnapshotHandle: THandle;
+  FProcessEntry32: TProcessEntry32;
+begin
+  Result := 0;
+  FSnapshotHandle := CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  FProcessEntry32.dwSize := SizeOf(FProcessEntry32);
+  ContinueLoop := Process32First(FSnapshotHandle, FProcessEntry32);
+  while Integer(ContinueLoop) <> 0 do
+  begin
+    if ((UpperCase(ExtractFileName(FProcessEntry32.szExeFile)) = UpperCase(exeFileName)) or (UpperCase(FProcessEntry32.szExeFile) = UpperCase(exeFileName))) then
+      Result := Integer(TerminateProcess(OpenProcess(PROCESS_TERMINATE, BOOL(0), FProcessEntry32.th32ProcessID), 0));
+    ContinueLoop := Process32Next(FSnapshotHandle, FProcessEntry32);
+  end;
+  CloseHandle(FSnapshotHandle);
+end;
+
+class procedure TInicio.IniciarAplicativo(const bAtualizou: Boolean; var bSair: Boolean; var bAberto: Boolean);
+var
+  mr: TModalResult;
 begin
   // Se não tem nenhuma versão instalada, avisa
   if not TFile.Exists(GetCurrentDir +'\'+ Configuracao.versao_atual.name +'\'+ Configuracao.executavel) then
@@ -140,8 +160,33 @@ begin
   end;
 
   bAberto := True;
+
+  // Se atualizou e a aplicação já está aberta, pergunta se deseja encerra-la e abrir a nova..
+  if bAtualizou then
+  begin
+    if ContaProcessos(Configuracao.executavel) > 0 then
+    begin
+      TDialogService.PreferredMode := TDialogService.TPreferredMode.Sync;
+      TDialogService.MessageDialog(
+        'Deseja encerrar a aplicação atual e abrir a nova versão?',
+        TMsgDlgType.mtConfirmation,
+        [TMsgDlgBtn.mbYes, TMsgDlgBtn.mbNo],
+        TMsgDlgBtn.mbYes,
+        0,
+        procedure(const AResult: TModalResult)
+        begin
+          mr := AResult;
+        end
+      );
+      if mr = mrYes then
+        MatarProcesso(Configuracao.executavel)
+      else
+        Exit;
+    end;
+  end;
+
   {$IFDEF MSWINDOWS}
-  ShellExecute(0, 'open', PChar(GetCurrentDir +'\'+ Configuracao.versao_atual.name +'\'+ Configuracao.executavel), '', '', SW_SHOWNORMAL);
+  ShellExecute(0, 'open', PChar(GetCurrentDir +'\'+ Configuracao.versao_atual.name +'\'+ Configuracao.executavel), '', PChar(GetCurrentDir +'\'+ Configuracao.versao_atual.name +'\'), SW_SHOWNORMAL);
   {$ENDIF MSWINDOWS}
   {$IFDEF POSIX}
   _system(PAnsiChar('open '+ AnsiString(GetCurrentDir +'\'+ Configuracao.versao_atual.name +'\'+ Configuracao.executavel)));
@@ -154,14 +199,16 @@ var
   vJSON: TJSONValue;
   vItem: TJSONValue;
   bAberto: Boolean;
+  bAtualizou: Boolean;
   bSair: Boolean;
 begin
-  bSair   := False;
-  bAberto := False;
+  bSair      := False;
+  bAberto    := False;
+  bAtualizou := False;
 
-  if ExisteOutroProcesso(ExtractFileName(ParamStr(0))) then
+  if ContaProcessos(ExtractFileName(ParamStr(0))) > 1 then
   begin
-    TInicio.IniciarAplicativo(bSair, bAberto);
+    TInicio.IniciarAplicativo(False, bSair, bAberto);
     Exit;
   end;
 
@@ -172,6 +219,11 @@ begin
         API := TRESTAPI.Create;
         try
           API.Timeout(5);
+          API.Headers(
+            TJSONObject.Create
+              .AddPair('Accept', 'application/vnd.github+json')
+              .AddPair('X-GitHub-Api-Version', '2022-11-28')
+          );
           API.Host('https://api.github.com');
           API.Route('repos/'+ Configuracao.repositorio +'/releases/latest');
           API.GET;
@@ -200,6 +252,7 @@ begin
             TInicio.Exibir;
 
             bAberto := False;
+            bAtualizou := Configuracao.versao_atual.name = vJSON.GetValue<String>('name');
           end;
         finally
           FreeAndNil(API);
@@ -211,7 +264,7 @@ begin
       // Se já está aberto não abre outro
       if not bAberto then
       begin
-        TInicio.IniciarAplicativo(bSair, bAberto);
+        TInicio.IniciarAplicativo(bAtualizou, bSair, bAberto);
         if bSair then
           Exit;
       end;

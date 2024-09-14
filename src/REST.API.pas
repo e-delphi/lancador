@@ -451,7 +451,7 @@ end;
 class function TContentResponse.New(ssConteudo: TStream): IContentResponse;
 begin
   Result := TContentResponse.Create;
-  TContentResponse(Result).FContent := TStringStream.Create;
+  TContentResponse(Result).FContent := TStringStream.Create('', TEncoding.UTF8);
   if Assigned(ssConteudo) then
     TContentResponse(Result).FContent.CopyFrom(ssConteudo, ssConteudo.Size);
 end;

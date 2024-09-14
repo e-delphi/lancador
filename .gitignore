@@ -38,3 +38,5 @@ __history/
 __recovery/
 *.~*
 bin/v*
+bin/conversa.*
+bin/download/*
