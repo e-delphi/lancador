@@ -16,7 +16,5 @@ begin
   if not TInicio.CarregarConfiguracao then
     Exit;
 
-  // Ao iniciar, matar qualquer outra instancia rodando
-
   TInicio.Iniciar;
 end.

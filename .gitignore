@@ -37,3 +37,4 @@
 __history/
 __recovery/
 *.~*
+bin/v*

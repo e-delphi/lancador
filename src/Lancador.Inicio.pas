@@ -81,6 +81,7 @@ type
     FUltimaAtualizacao: TDateTime;
     procedure ReceiveData(const Sender: TObject; AContentLength, AReadCount: Int64; var AAbort: Boolean);
     procedure AtualizaBotao;
+    class procedure IniciarAplicativo(var bSair: Boolean; var bAberto: Boolean);
   public
     class function CarregarConfiguracao: Boolean;
     class procedure SalvarConfiguracao;
@@ -105,27 +106,46 @@ var
 
 { TInicio }
 
-function ProcessExists(exeFileName: string): Boolean;
+function ExisteOutroProcesso(exeFileName: string): Boolean;
 var
   ContinueLoop: BOOL;
   FSnapshotHandle: THandle;
   FProcessEntry32: TProcessEntry32;
+  iQtd: Integer;
 begin
   FSnapshotHandle := CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
   FProcessEntry32.dwSize := SizeOf(FProcessEntry32);
   ContinueLoop := Process32First(FSnapshotHandle, FProcessEntry32);
+  iQtd := 0;
   Result := False;
   while Integer(ContinueLoop) <> 0 do
   begin
-    if ((UpperCase(ExtractFileName(FProcessEntry32.szExeFile)) =
-      UpperCase(ExeFileName)) or (UpperCase(FProcessEntry32.szExeFile) =
-      UpperCase(ExeFileName))) then
-    begin
-      Result := True;
-    end;
+    if (UpperCase(ExtractFileName(FProcessEntry32.szExeFile)) = UpperCase(ExeFileName)) or (UpperCase(FProcessEntry32.szExeFile) = UpperCase(ExeFileName)) then
+      Inc(iQtd);
+    if iQtd > 1 then
+      Exit(True);
     ContinueLoop := Process32Next(FSnapshotHandle, FProcessEntry32);
   end;
   CloseHandle(FSnapshotHandle);
+end;
+
+class procedure TInicio.IniciarAplicativo(var bSair: Boolean; var bAberto: Boolean);
+begin
+  // Se não tem nenhuma versão instalada, avisa
+  if not TFile.Exists(GetCurrentDir +'\'+ Configuracao.versao_atual.name +'\'+ Configuracao.executavel) then
+  begin
+    ShowMessage('Aplicativo ainda não instalado, instale para poder abrir!');
+    bSair := True;
+    Exit;
+  end;
+
+  bAberto := True;
+  {$IFDEF MSWINDOWS}
+  ShellExecute(0, 'open', PChar(GetCurrentDir +'\'+ Configuracao.versao_atual.name +'\'+ Configuracao.executavel), '', '', SW_SHOWNORMAL);
+  {$ENDIF MSWINDOWS}
+  {$IFDEF POSIX}
+  _system(PAnsiChar('open '+ AnsiString(GetCurrentDir +'\'+ Configuracao.versao_atual.name +'\'+ Configuracao.executavel)));
+  {$ENDIF POSIX}
 end;
 
 class procedure TInicio.Iniciar;
@@ -133,9 +153,18 @@ var
   API: TRESTAPI;
   vJSON: TJSONValue;
   vItem: TJSONValue;
-  FAberto: Boolean;
+  bAberto: Boolean;
+  bSair: Boolean;
 begin
-  FAberto := False;
+  bSair   := False;
+  bAberto := False;
+
+  if ExisteOutroProcesso(ExtractFileName(ParamStr(0))) then
+  begin
+    TInicio.IniciarAplicativo(bSair, bAberto);
+    Exit;
+  end;
+
   while True do
   try
     try
@@ -170,7 +199,7 @@ begin
             TInicio.SalvarConfiguracao;
             TInicio.Exibir;
 
-            FAberto := False;
+            bAberto := False;
           end;
         finally
           FreeAndNil(API);
@@ -180,19 +209,16 @@ begin
       end;
 
       // Se já está aberto não abre outro
-      if not FAberto then
+      if not bAberto then
       begin
-        FAberto := True;
-        {$IFDEF MSWINDOWS}
-        ShellExecute(0, 'open', PChar(GetCurrentDir +'\'+ Configuracao.versao_atual.name +'\'+ Configuracao.executavel), '', '', SW_SHOWNORMAL);
-        {$ENDIF MSWINDOWS}
-        {$IFDEF POSIX}
-        _system(PAnsiChar('open '+ AnsiString(GetCurrentDir +'\'+ Configuracao.versao_atual.name +'\'+ Configuracao.executavel)));
-        {$ENDIF POSIX}
+        TInicio.IniciarAplicativo(bSair, bAberto);
+        if bSair then
+          Exit;
       end;
     finally
-      for var I := 1 to Configuracao.tempo_verificacao do
-        Sleep(MSecsPerSec);
+      if not bSair then
+        for var I := 1 to Configuracao.tempo_verificacao do
+          Sleep(MSecsPerSec);
     end;
   except
   end;
@@ -224,7 +250,7 @@ begin
 
   js := TJsonSerializer.Create;
   try
-    Configuracao := js.Deserialize<TConfiguracao>(StringOf(TFile.ReadAllBytes(GetCurrentDir +'\configuracao.json')));
+    Configuracao := js.Deserialize<TConfiguracao>(TFile.ReadAllText(GetCurrentDir +'\configuracao.json'));
     Result := True;
   finally
     FreeAndNil(js);
@@ -237,7 +263,7 @@ var
 begin
   js := TJsonSerializer.Create;
   try
-    TFile.WriteAllBytes(GetCurrentDir +'\configuracao.json', BytesOf(js.Serialize<TConfiguracao>(Configuracao)));
+    TFile.WriteAllText(GetCurrentDir +'\configuracao.json', js.Serialize<TConfiguracao>(Configuracao));
   finally
     FreeAndNil(js);
   end;
