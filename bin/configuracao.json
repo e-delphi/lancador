@@ -3,19 +3,5 @@
     "tempo_verificacao": 60,
     "repositorio": "conversa-projeto/conversa-windows-fmx",
     "instalador": "conversa.zip",
-    "executavel": "conversa.exe",
-    "versao_atual":
-    {
-        "name": "v0.0.2",
-        "created_at": "2024-09-20T01:17:31Z",
-        "body": "### Melhorias\r\n- Adiciona Skia para visualização de outros formatos de imagem\r\n- Ajusta inicialização para a do [Lançador](https://github.com/e-delphi/lancador)\r\n- Altera diretório inicial das configurações e cache do aplicativo",
-        "download": "https://github.com/conversa-projeto/conversa-windows-fmx/releases/download/v0.0.2/conversa.zip"
-    },
-    "versao_nova":
-    {
-        "name": "",
-        "created_at": "",
-        "body": "",
-        "download": ""
-    }
+    "executavel": "conversa.exe"
 }
