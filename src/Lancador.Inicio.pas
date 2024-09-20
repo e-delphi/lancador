@@ -6,13 +6,12 @@ interface
 {$SCOPEDENUMS ON}
 
 uses
-  {$IFDEF MSWINDOWS}
   Winapi.Windows,
   Winapi.ShellAPI,
   Winapi.TlHelp32,
   Winapi.Messages,
   FMX.Platform.Win,
-  {$ENDIF MSWINDOWS}
+  System.Win.Registry,
   System.SysUtils,
   System.Types,
   System.UITypes,
@@ -50,6 +49,7 @@ type
   end;
 
   TConfiguracao = record
+    iniciar_windows: Boolean;
     tempo_verificacao: Integer;
     repositorio: String;
     instalador: String;
@@ -82,6 +82,7 @@ type
     procedure ReceiveData(const Sender: TObject; AContentLength, AReadCount: Int64; var AAbort: Boolean);
     procedure AtualizaBotao;
     class procedure IniciarAplicativo(const bAtualizou: Boolean; var bSair: Boolean; var bAberto: Boolean);
+    class procedure InicializarWindows(sApp: String; bAdd: Boolean);
   public
     class function CarregarConfiguracao: Boolean;
     class procedure SalvarConfiguracao;
@@ -185,12 +186,7 @@ begin
     end;
   end;
 
-  {$IFDEF MSWINDOWS}
   ShellExecute(0, 'open', PChar(GetCurrentDir +'\'+ Configuracao.versao_atual.name +'\'+ Configuracao.executavel), '', PChar(GetCurrentDir +'\'+ Configuracao.versao_atual.name +'\'), SW_SHOWNORMAL);
-  {$ENDIF MSWINDOWS}
-  {$IFDEF POSIX}
-  _system(PAnsiChar('open '+ AnsiString(GetCurrentDir +'\'+ Configuracao.versao_atual.name +'\'+ Configuracao.executavel)));
-  {$ENDIF POSIX}
 end;
 
 class procedure TInicio.Iniciar;
@@ -211,6 +207,8 @@ begin
     TInicio.IniciarAplicativo(False, bSair, bAberto);
     Exit;
   end;
+
+  InicializarWindows(Configuracao.executavel, Configuracao.iniciar_windows);
 
   while True do
   try
@@ -319,6 +317,33 @@ begin
     TFile.WriteAllText(GetCurrentDir +'\configuracao.json', js.Serialize<TConfiguracao>(Configuracao));
   finally
     FreeAndNil(js);
+  end;
+end;
+
+class procedure TInicio.InicializarWindows(sApp: String; bAdd: Boolean);
+var
+  Reg: TRegistry;
+  Nome: String;
+begin
+  try
+    Reg := TRegistry.Create;
+    try
+      Reg.RootKey := HKEY_CURRENT_USER;
+      Reg.OpenKey('Software\Microsoft\Windows\CurrentVersion\Run', False);
+
+      Nome := ChangeFileExt(ExtractFileName(sApp), EmptyStr);
+
+      if bAdd then
+        Reg.WriteString(Nome, '"'+ ParamStr(0) +'"')
+      else
+      if Reg.ValueExists(Nome) then
+        Reg.DeleteValue(Nome);
+
+      Reg.CloseKey;
+    finally
+      FreeAndNil(Reg);
+    end;
+  except
   end;
 end;
 
@@ -505,7 +530,7 @@ begin
                 end
               );
             end;
-            
+
             faAcao.Stop;
             faAcao.StopValue := pbAcao.Max;
             faAcao.Start;

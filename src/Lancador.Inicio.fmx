@@ -138,6 +138,6 @@ object Inicio: TInicio
   end
   object HTTPClient: TNetHTTPClient
     UserAgent = 'Embarcadero URI Client/1.0'
-    Left = 495
+    Left = 383
   end
 end
