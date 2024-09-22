@@ -27,7 +27,7 @@ uses
   FMX.Controls;
 
 type
-  TMarkKind = (Header, Bold, Italic, Underline, List, Code, Hiperlink);
+  TMarkKind = (Header, Bold, Italic, Underline, List, Code, MDHiperlink, Hiperlink);
 
   TMarkItem = record
   public
@@ -89,7 +89,7 @@ begin
   if Value then
   begin
     Font.Family := 'Helvetica';
-    Font.Size := 18;
+    Font.Size := 12;
     Self.Opacity := 0.75;
   end
   else
@@ -102,13 +102,14 @@ end;
 
 procedure TText.SetNewText(const Value: string);
 const
-  FontSizes: TArray<Single> = [36, 27, 21.06, 18, 14.94, 12.06];
+  FontSizes: TArray<Single> = [24, 18, 14.04, 12, 9.96, 8.04];
   BoldPattern = '(?<!\*)\*\*(?!\*)(.*?)\*\*(?!\*)';
   ItalicPattern = '(?<!\*)\*(?!\*)(.*?)\*(?!\*)';
   UnderlinePattern = '(?<!_)__(?!_)(.*?)__(?!_)';
   ListPattern = '(^\*[^*].+)';
   CodePattern = '(`.+`)';
-  LinkPattern = '(http|ftp|https):\/\/([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])';
+  MDLinkPattern = '\[.+?\]\(.+?\)';
+  LinkPattern = '(?<!\()(http|ftp|https):\/\/([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])(?<!\))';
 var
   I: Integer;
   Item: TMarkItem;
@@ -224,6 +225,21 @@ begin
     Itens := Itens + [Item];
   end;
 
+  // MD Hiperlink
+  Matches := TRegEx.Matches(Temp, MDLinkPattern, [roMultiLine]);
+  for Match in Matches do
+  begin
+    Item := Default(TMarkItem);
+    Item.Kind := TMarkKind.MDHiperlink;
+    Item.Font := TFont.Create;
+    Item.Font.Assign(Self.Font);
+    Item.Font.Style := [TFontStyle.fsUnderline];
+    Item.Range := TTextRange.Create(Match.Index - 1, Match.Length);
+    Item.Attribute := TTextAttribute.Create(Item.Font, TAlphaColorF.Create(0, 0, 238 / 255).ToAlphaColor);
+    Item.Value := Match.Value;
+    Itens := Itens + [Item];
+  end;
+
   // Hiperlink
   Matches := TRegEx.Matches(Temp, LinkPattern, [roMultiLine]);
   for Match in Matches do
@@ -250,6 +266,7 @@ var
 begin
   Result := OriginalText;
   Deslocamento := 0;
+
   // Ordenar o array de formatações pelo índice de forma decrescente para ajuste correto
   TArray.Sort<TMarkItem>(Itens, TComparer<TMarkItem>.Construct(
     function(const Left, Right: TMarkItem): Integer
@@ -257,24 +274,28 @@ begin
       Result := Left.Range.Pos - Right.Range.Pos;
     end
   ));
+
   // Remover formatação do markdown e ajustar o texto
   for I := Low(Itens) to High(Itens) do
   begin
     TamanhoAnterior := Length(Result);
     case Itens[I].Kind of
-      TMarkKind.Header:    Result := Result.Replace(Itens[I].Value, Itens[I].Value.Replace('#', EmptyStr).Trim);
-      TMarkKind.Bold:      Result := Result.Replace(Itens[I].Value, Itens[I].Value.Replace('**', EmptyStr));
-      TMarkKind.Italic:    Result := Result.Replace(Itens[I].Value, Itens[I].Value.Replace('*', EmptyStr));
-      TMarkKind.Underline: Result := Result.Replace(Itens[I].Value, Itens[I].Value.Replace('_', EmptyStr));
-      TMarkKind.List:      Result := Result.Replace(Itens[I].Value, Itens[I].Value.Replace('*', '    ●'));
-      TMarkKind.Code:      Result := Result.Replace(Itens[I].Value, Itens[I].Value.Replace('`', EmptyStr));
+      TMarkKind.Header:      Result := Result.Replace(Itens[I].Value, Itens[I].Value.Replace('#', EmptyStr).Trim);
+      TMarkKind.Bold:        Result := Result.Replace(Itens[I].Value, Itens[I].Value.Replace('**', EmptyStr));
+      TMarkKind.Italic:      Result := Result.Replace(Itens[I].Value, Itens[I].Value.Replace('*', EmptyStr));
+      TMarkKind.Underline:   Result := Result.Replace(Itens[I].Value, Itens[I].Value.Replace('_', EmptyStr));
+      TMarkKind.List:        Result := Result.Replace(Itens[I].Value, Itens[I].Value.Replace('*', '    ●'));
+      TMarkKind.Code:        Result := Result.Replace(Itens[I].Value, Itens[I].Value.Replace('`', EmptyStr));
+      TMarkKind.MDHiperlink: Result := Result.Replace(Itens[I].Value, TRegEx.Replace(Itens[I].Value, '\(.+?\)', EmptyStr, [roMultiLine]).TrimLeft(['[']).TrimRight([']']));
       TMarkKind.Hiperlink:;
     end;
+
     // Ajusta o item atual
     Itens[I].Range.Pos := Itens[I].Range.Pos - Deslocamento;
 
     // Atualiza o tamanho
     Itens[I].Range.Length := Itens[I].Range.Length - (TamanhoAnterior - Length(Result));
+
     // Atualizar o deslocamento para os próximos ajustes
     Deslocamento := Deslocamento + (TamanhoAnterior - Length(Result));
 
@@ -301,12 +322,12 @@ begin
 
   for I := Low(Itens) to High(Itens) do
   begin
-    if Itens[I].Kind <> TMarkKind.Hiperlink then
-      Continue;
-
-    if Itens[I].Range.InRange(CaretPos) then
+    if (Itens[I].Kind in [TMarkKind.MDHiperlink, TMarkKind.Hiperlink]) and Itens[I].Range.InRange(CaretPos) then
     begin
-      sLink := Copy(Text, Succ(Itens[I].Range.Pos), Itens[I].Range.Length);
+      case Itens[I].Kind of
+        TMarkKind.MDHiperlink: sLink := TRegEx.Replace(Itens[I].Value, '[\[].+[?\]]', EmptyStr).TrimLeft(['(']).TrimRight([')']);
+        TMarkKind.Hiperlink:   sLink := Copy(Text, Succ(Itens[I].Range.Pos), Itens[I].Range.Length);
+      end;
 
       Self.Canvas.BeginScene;
       Self.Layout.BeginUpdate;
@@ -350,7 +371,7 @@ begin
     CaretPos := Layout.PositionAtPoint(TPointF.Create(X, Y));
     for I := Low(Itens) to High(Itens) do
     begin
-      if Itens[I].Kind <> TMarkKind.Hiperlink then
+      if not (Itens[I].Kind in [TMarkKind.MDHiperlink, TMarkKind.Hiperlink]) then
         Continue;
 
       if Itens[I].Range.InRange(CaretPos) then

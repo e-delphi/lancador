@@ -361,8 +361,6 @@ begin
   FProcessando := False;
   FUltimaAtualizacao := 0;
   txtInformacoes.IsMarkdown := True;
-  lytScale.Scale.X := 0.75;
-  lytScale.Scale.Y := 0.75;
 
   AtualizaBotao;
 
