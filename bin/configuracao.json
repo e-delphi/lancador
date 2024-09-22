@@ -1,6 +1,9 @@
 {
+    "api": "https://api.github.com",
     "iniciar_windows": true,
     "tempo_verificacao": 60,
+    "espera_iniciar": 30,
+    "tempo_verificacao": 3600,
     "repositorio": "conversa-projeto/conversa-windows-fmx",
     "instalador": "conversa.zip",
     "executavel": "conversa.exe"

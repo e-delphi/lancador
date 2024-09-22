@@ -49,7 +49,9 @@ type
   end;
 
   TConfiguracao = record
+    api: String;
     iniciar_windows: Boolean;
+    espera_iniciar: Integer;
     tempo_verificacao: Integer;
     repositorio: String;
     instalador: String;
@@ -202,6 +204,9 @@ begin
   bAberto    := False;
   bAtualizou := False;
 
+  if ParamStr(1).Equals('-inicializar') then
+    Sleep(Configuracao.espera_iniciar * MSecsPerSec);
+
   if ContaProcessos(ExtractFileName(ParamStr(0))) > 1 then
   begin
     TInicio.IniciarAplicativo(False, bSair, bAberto);
@@ -217,12 +222,7 @@ begin
         API := TRESTAPI.Create;
         try
           API.Timeout(5);
-          API.Headers(
-            TJSONObject.Create
-              .AddPair('Accept', 'application/vnd.github+json')
-              .AddPair('X-GitHub-Api-Version', '2022-11-28')
-          );
-          API.Host('https://api.github.com');
+          API.Host(Configuracao.api);
           API.Route('repos/'+ Configuracao.repositorio +'/releases/latest');
           API.GET;
           if API.Response.Status <> TResponseStatus.Sucess then
@@ -268,8 +268,7 @@ begin
       end;
     finally
       if not bSair then
-        for var I := 1 to Configuracao.tempo_verificacao do
-          Sleep(MSecsPerSec);
+        Sleep(Configuracao.tempo_verificacao * MSecsPerSec);
     end;
   except
   end;
@@ -293,6 +292,8 @@ class function TInicio.CarregarConfiguracao: Boolean;
 var
   js: TJsonSerializer;
 begin
+  SetCurrentDir(ExtractFileDir(ParamStr(0)));
+
   if not TFile.Exists(GetCurrentDir +'\configuracao.json') then
   begin
     ShowMessage('Arquivo de configuração não encontrado!');
@@ -302,6 +303,8 @@ begin
   js := TJsonSerializer.Create;
   try
     Configuracao := js.Deserialize<TConfiguracao>(TFile.ReadAllText(GetCurrentDir +'\configuracao.json'));
+    if Configuracao.api.IsEmpty then
+      Configuracao.api := 'https://api.github.com';
     Result := True;
   finally
     FreeAndNil(js);
@@ -334,7 +337,7 @@ begin
       Nome := ChangeFileExt(ExtractFileName(sApp), EmptyStr);
 
       if bAdd then
-        Reg.WriteString(Nome, '"'+ ParamStr(0) +'"')
+        Reg.WriteString(Nome, '"'+ ParamStr(0) +'" -inicializar')
       else
       if Reg.ValueExists(Nome) then
         Reg.DeleteValue(Nome);
